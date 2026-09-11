@@ -1,0 +1,261 @@
+/* GURUJI — Dark theme */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Login page ────────────────────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  padding: 36px;
+  width: min(440px, 100%);
+}
+
+.brand {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  color: #f0c060;
+  margin-bottom: 6px;
+}
+
+.brand-sub {
+  font-size: 16px;
+  font-weight: 600;
+  color: #b8c2cc;
+  margin-bottom: 6px;
+}
+
+.brand-meta {
+  color: #8b949e;
+  font-size: 12px;
+  margin-bottom: 28px;
+}
+
+/* ── Form controls ──────────────────────────────────────────────────────── */
+label {
+  display: block;
+  color: #b8c2cc;
+  font-size: 13px;
+  margin: 14px 0 0;
+}
+
+input, select, textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #0d1117;
+  color: #e6edf3;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #f0c060;
+}
+
+input[readonly] { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+button, .btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #f0c060;
+  color: #0d1117;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, opacity 0.15s;
+  margin: 4px 4px 4px 0;
+}
+
+button:hover, .btn:hover { background: #f5d070; }
+button:active, .btn:active { opacity: 0.8; }
+
+button.secondary, .btn.secondary {
+  background: #21262d;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+}
+
+button.secondary:hover, .btn.secondary:hover { background: #2d333b; }
+
+button.danger {
+  background: #da3633;
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.topbar {
+  height: 56px;
+  border-bottom: 1px solid #30363d;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #161b22;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar strong { font-size: 15px; color: #f0c060; white-space: nowrap; }
+
+.topbar-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.topbar-nav a {
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #b8c2cc;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+
+.topbar-nav a:hover { background: #21262d; color: #e6edf3; border-color: #30363d; }
+.topbar-nav a.active { color: #f0c060; border-color: #f0c06060; }
+
+.container { max-width: 1200px; margin: auto; padding: 24px 20px; }
+
+.card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card h1 { font-size: 18px; margin-bottom: 6px; }
+.card h2 { font-size: 15px; margin-bottom: 12px; color: #b8c2cc; font-weight: 600; }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.session-times { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── Status / badges ────────────────────────────────────────────────────── */
+.status-bar {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-ok   { background: #1a3a2a; color: #3fb950; }
+.badge-warn { background: #3d2a00; color: #d29922; }
+.badge-err  { background: #3d1a1a; color: #f85149; }
+
+.muted { color: #8b949e; }
+.small { font-size: 12px; }
+.error-text { color: #f85149; font-size: 13px; margin-top: 8px; }
+.success-text { color: #3fb950; font-size: 13px; margin-top: 8px; }
+
+/* ── Varga checkboxes ───────────────────────────────────────────────────── */
+.varga-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.varga-check {
+  padding: 8px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+
+.varga-check:hover { border-color: #58a6ff; }
+.varga-check input { display: inline; width: auto; margin: 0; }
+
+/* ── Result pane ────────────────────────────────────────────────────────── */
+.result-pane {
+  overflow: auto;
+  white-space: pre-wrap;
+  background: #0d1117;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  min-height: 200px;
+  max-height: 600px;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── Progress ───────────────────────────────────────────────────────────── */
+progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: none;
+  background: #30363d;
+  display: block;
+  margin: 10px 0;
+}
+
+progress::-webkit-progress-bar  { background: #30363d; }
+progress::-webkit-progress-value { background: #f0c060; }
+progress::-moz-progress-bar { background: #f0c060; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .two, .three { grid-template-columns: 1fr; }
+  .varga-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 500px) {
+  .topbar-nav { display: none; }
+  .varga-grid { grid-template-columns: repeat(3, 1fr); }
+}
