@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GURUJI — Login</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="brand">GURUJI</div>
+    <div class="brand-sub">Astro Data Engine v20</div>
+    <p class="brand-meta">Single-admin system · Lahiri · Drik Panchang compatible</p>
+
+    <label>Username
+      <input id="username" type="text" autocomplete="username" value="Admin" required>
+    </label>
+    <label>Password
+      <input id="password" type="password" autocomplete="current-password" required>
+    </label>
+
+    <div class="row" style="margin-top:20px">
+      <button id="loginBtn">LOGIN</button>
+    </div>
+
+    <div id="statusMsg" style="margin-top:14px; font-size:13px;"></div>
+  </div>
+
+  <script>
+    // ── Check if already logged in ──────────────────────────────────────────
+    (async () => {
+      try {
+        const r = await fetch("/api/session");
+        if (r.ok) { const d = await r.json(); if (d.ok) location.href = "/dashboard.html"; }
+      } catch {}
+    })();
+
+    // ── Login handler ───────────────────────────────────────────────────────
+    async function doLogin() {
+      const msg  = document.getElementById("statusMsg");
+      const btn  = document.getElementById("loginBtn");
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value;
+
+      if (!user || !pass) {
+        msg.style.color = "#f85149";
+        msg.textContent = "Enter username and password.";
+        return;
+      }
+
+      btn.disabled = true;
+      msg.style.color = "#8b949e";
+      msg.textContent = "Verifying…";
+
+      try {
+        const r = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: user, password: pass }),
+        });
+        const data = await r.json();
+
+        if (r.ok && data.ok) {
+          msg.style.color = "#3fb950";
+          msg.textContent = "Login successful. Redirecting…";
+          location.href = "/dashboard.html";
+        } else {
+          msg.style.color = "#f85149";
+          msg.textContent = data.error === "INVALID_LOGIN" ? "Invalid username or password." : (data.error || "Login failed.");
+          btn.disabled = false;
+        }
+      } catch (e) {
+        msg.style.color = "#f85149";
+        msg.textContent = "Server error: " + e.message;
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById("loginBtn").addEventListener("click", doLogin);
+    document.getElementById("password").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+    document.getElementById("username").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("password").focus(); });
+  </script>
+</body>
+</html>

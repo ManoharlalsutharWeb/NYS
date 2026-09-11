@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GURUJI — Ephemeris Status</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+<script>
+  (async () => {
+    try { const r = await fetch("/api/session"); if (!r.ok) location.href = "/login.html"; const d = await r.json(); if (!d.ok) location.href = "/login.html"; } catch { location.href = "/login.html"; }
+  })();
+</script>
+
+<header class="topbar">
+  <strong>🔮 GURUJI — Ephemeris Status</strong>
+  <nav class="topbar-nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="ephemeris-status.html" class="active">Ephemeris Status</a>
+    <a href="minute-explorer.html">Minute Explorer</a>
+    <a href="varga-matrix.html">Varga Matrix</a>
+    <a href="validation.html">Validation</a>
+    <button id="logoutBtn" class="secondary" style="margin:0">Logout</button>
+  </nav>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h1>Swiss Ephemeris Self-Test</h1>
+    <p class="muted" style="margin-bottom:16px">
+      Checks whether <code>@swisseph/node</code> is installed and can calculate a real planetary position
+      using the local Lahiri (Drik Panchang) sidereal mode. No astronomical values are fabricated.
+    </p>
+    <div class="row">
+      <button id="runBtn">RUN SERVER SELF-TEST</button>
+      <button id="checkFilesBtn" class="secondary">CHECK EPHEMERIS FILES</button>
+    </div>
+    <div id="badgeArea" style="margin-top:12px"></div>
+    <pre id="out" class="result-pane" style="margin-top:12px">Click RUN SERVER SELF-TEST to check.</pre>
+  </div>
+
+  <div class="card">
+    <h2>Ephemeris File Checklist</h2>
+    <p class="muted small" style="margin-bottom:10px">These files must exist in <code>frontend/ephemeris/</code> for browser-side WASM calculations:</p>
+    <div id="fileList">
+      <p class="muted">Click CHECK EPHEMERIS FILES to verify.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>About the Ephemeris</h2>
+    <p class="muted small">
+      GURUJI uses <strong>Swiss Ephemeris</strong> with <strong>Lahiri ayanamsa</strong> — the same ayanamsa used
+      by Drik Panchang and most Indian Vedic astrology software.<br><br>
+      The ephemeris data files cover 1800–2399 CE. They are loaded from <code>frontend/ephemeris/</code>
+      at runtime — no external API calls are made.<br><br>
+      Each calculation verifies that the <code>source</code> field equals <code>"swiss"</code>.
+      If Moshier (built-in fallback) is used, the calculation is rejected.
+    </p>
+  </div>
+</main>
+
+<script>
+  document.getElementById("logoutBtn").onclick = async () => {
+    await fetch("/api/logout", { method: "POST" });
+    location.href = "/login.html";
+  };
+
+  document.getElementById("runBtn").onclick = async () => {
+    const out   = document.getElementById("out");
+    const badge = document.getElementById("badgeArea");
+    out.textContent   = "Running self-test on server…";
+    badge.innerHTML   = "";
+
+    try {
+      const r = await fetch("/api/ephemeris/status");
+      const d = await r.json();
+      out.textContent = JSON.stringify(d, null, 2);
+
+      if (d.pass) {
+        badge.innerHTML = '<span class="badge badge-ok">✅ PASS — Swiss Ephemeris OK · Lahiri Active</span>';
+      } else {
+        badge.innerHTML = `<span class="badge badge-err">❌ FAIL — ${d.error || "Self-test failed"}</span>`;
+      }
+    } catch (e) {
+      out.textContent = "Error: " + e.message;
+      badge.innerHTML = '<span class="badge badge-err">❌ Server unreachable</span>';
+    }
+  };
+
+  document.getElementById("checkFilesBtn").onclick = async () => {
+    const fileList = document.getElementById("fileList");
+    const files = ["sepl_18.se1", "semo_18.se1", "seas_18.se1", "sefstars.txt", "seorbel.txt"];
+    fileList.innerHTML = "<p class='muted small'>Checking files…</p>";
+
+    const results = await Promise.all(files.map(async f => {
+      try {
+        const r = await fetch(`/ephemeris/${f}`, { method: "HEAD" });
+        return { file: f, ok: r.ok, status: r.status };
+      } catch {
+        return { file: f, ok: false, status: "network error" };
+      }
+    }));
+
+    fileList.innerHTML = results.map(r =>
+      `<div style="padding:6px 0;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px">
+        <span class="badge ${r.ok ? "badge-ok" : "badge-err"}">${r.ok ? "✓" : "✗"}</span>
+        <code style="flex:1">${r.file}</code>
+        <span class="muted small">${r.ok ? "Found" : "MISSING — run: npm run prepare:ephemeris"}</span>
+      </div>`
+    ).join("");
+  };
+</script>
+</body>
+</html>

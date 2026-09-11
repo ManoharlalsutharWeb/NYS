@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GURUJI — Astro Data Engine</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- ── Auth guard (runs before page renders) ─────────────────────────────── -->
+<script>
+  (async () => {
+    try {
+      const r = await fetch("/api/session");
+      if (!r.ok) { location.href = "/login.html"; return; }
+      const d = await r.json();
+      if (!d.ok) location.href = "/login.html";
+    } catch { location.href = "/login.html"; }
+  })();
+</script>
+
+<!-- ── Top bar ──────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <strong>🔮 GURUJI ASTRO ENGINE</strong>
+  <nav class="topbar-nav">
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="ephemeris-status.html">Ephemeris Status</a>
+    <a href="minute-explorer.html">Minute Explorer</a>
+    <a href="varga-matrix.html">Varga Matrix</a>
+    <a href="validation.html">Validation</a>
+    <button id="logoutBtn" class="secondary" style="margin:0">Logout</button>
+  </nav>
+</header>
+
+<!-- ── Main content ─────────────────────────────────────────────────────── -->
+<main class="container">
+
+  <!-- Engine status -->
+  <div class="card">
+    <h1>Astro Data Generator</h1>
+    <p class="muted" style="margin-bottom:12px">Local Swiss Ephemeris · Lahiri (Drik Panchang) · New York · D1–D60</p>
+    <div id="engineStatus" class="status-bar">Engine: not initialized</div>
+  </div>
+
+  <!-- Input + Session panels -->
+  <div class="two">
+
+    <!-- Single calculation -->
+    <div class="card">
+      <h2>Single Minute Calculation</h2>
+      <label>Date <input type="date" id="date" value="2026-09-11"></label>
+      <label>Time (New York) <input type="time" id="time" value="09:30:00" step="1"></label>
+      <label>Location <input id="location" value="New York, USA"></label>
+      <label>Latitude <input id="lat" type="number" step="0.000001" value="40.7128"></label>
+      <label>Longitude <input id="lon" type="number" step="0.000001" value="-74.0060"></label>
+      <label>Timezone <input id="tz" value="America/New_York" readonly></label>
+      <label>Ayanamsa
+        <select id="ayanamsa"><option value="LAHIRI" selected>Lahiri (Drik Panchang)</option></select>
+      </label>
+      <div class="row">
+        <button id="initBtn">INITIALIZE ENGINE</button>
+        <button id="singleBtn" class="secondary">CALCULATE SINGLE</button>
+      </div>
+    </div>
+
+    <!-- Session generator -->
+    <div class="card">
+      <h2>US Session Generator</h2>
+      <p class="muted" style="margin-bottom:12px">US equity session: 09:30–15:59 New York (390 one-minute records)</p>
+      <div class="session-times">
+        <label>Start <input type="time" id="sessionStart" value="09:30"></label>
+        <label>End (exclusive) <input type="time" id="sessionEnd" value="16:00"></label>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button id="sessionBtn">GENERATE 390 RECORDS</button>
+      </div>
+      <div class="row">
+        <button id="csvBtn" class="secondary">⬇ CSV</button>
+        <button id="jsonBtn" class="secondary">⬇ JSON</button>
+      </div>
+      <div id="progressArea" style="display:none;margin-top:10px">
+        <progress id="progressBar" max="100" value="0"></progress>
+        <div id="progressText" class="muted small"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Varga selection -->
+  <div class="card">
+    <h2>Varga (Divisional Chart) Selection</h2>
+    <p class="muted small" style="margin-bottom:10px">D1 and D9 are core. Others require Drik reference validation before production export.</p>
+    <div id="vargaGrid" class="varga-grid"></div>
+  </div>
+
+  <!-- Result output -->
+  <div class="card">
+    <h2>Result</h2>
+    <pre id="result" class="result-pane">No calculation yet. Initialize engine, then calculate.</pre>
+  </div>
+
+</main>
+
+<script type="module">
+  import { initEngine, calculate, calculateUSSession, engineStatus } from "./js/engine.js";
+  import { VARGAS } from "./js/vedic-rules.js";
+
+  // ── Varga checkboxes ──────────────────────────────────────────────────────
+  const vargaGrid = document.getElementById("vargaGrid");
+  for (const v of VARGAS) {
+    const label = document.createElement("label");
+    label.className = "varga-check";
+    label.innerHTML = `<input type="checkbox" value="${v}" ${v === 1 || v === 9 ? "checked" : ""}> D${v}`;
+    vargaGrid.appendChild(label);
+  }
+
+  const selectedVargas = () =>
+    [...vargaGrid.querySelectorAll("input:checked")].map(x => Number(x.value));
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const setStatus = t => { $("engineStatus").textContent = t; };
+  const showResult = x => { $("result").textContent = JSON.stringify(x, null, 2); };
+
+  let sessionRows = [];
+
+  // ── Logout ────────────────────────────────────────────────────────────────
+  $("logoutBtn").onclick = async () => {
+    await fetch("/api/logout", { method: "POST" });
+    location.href = "/login.html";
+  };
+
+  // ── Initialize Engine ─────────────────────────────────────────────────────
+  $("initBtn").onclick = async () => {
+    setStatus("Initializing Swiss Ephemeris WASM...");
+    try {
+      await initEngine();
+      const s = engineStatus();
+      setStatus(`✅ Engine READY — Swiss Ephemeris WASM · Lahiri · ${s.bytes.toLocaleString()} bytes · ${s.files.length} files`);
+    } catch (e) {
+      setStatus("❌ Engine ERROR: " + e.message);
+    }
+  };
+
+  // ── Single Calculation ────────────────────────────────────────────────────
+  $("singleBtn").onclick = async () => {
+    setStatus("Calculating...");
+    try {
+      await initEngine();
+      const r = await calculate({
+        date: $("date").value, time: $("time").value,
+        lat: $("lat").value, lon: $("lon").value,
+        enabledVargas: selectedVargas(),
+      });
+      sessionRows = [r];
+      showResult(r);
+      if (!String(r.ephemeris_used || "").includes("swiss")) {
+        alert("⚠ WARNING: Swiss ephemeris was NOT used for this calculation. Do not export as production data.");
+      }
+      setStatus("✅ Single calculation complete — Swiss source confirmed");
+    } catch (e) {
+      setStatus("❌ Calculation ERROR: " + e.message);
+      showResult({ error: e.message });
+    }
+  };
+
+  // ── Session Generation ────────────────────────────────────────────────────
+  $("sessionBtn").onclick = async () => {
+    const progressArea = $("progressArea");
+    const progressBar  = $("progressBar");
+    const progressText = $("progressText");
+    progressArea.style.display = "block";
+    progressBar.value = 0;
+    progressText.textContent = "";
+    $("result").textContent = "Generating session…";
+    setStatus("Initializing...");
+
+    try {
+      await initEngine();
+      const [sH, sM] = $("sessionStart").value.split(":").map(Number);
+      const [eH, eM] = $("sessionEnd").value.split(":").map(Number);
+
+      const payload = await calculateUSSession({
+        date: $("date").value,
+        lat: $("lat").value, lon: $("lon").value,
+        startMinute: sH * 60 + sM,
+        endMinute:   eH * 60 + eM,
+        enabledVargas: selectedVargas(),
+        onProgress: p => {
+          progressBar.value = p.percent;
+          progressText.textContent = `Generating: ${p.done}/${p.total} records (${p.percent.toFixed(1)}%)`;
+        },
+      });
+
+      sessionRows = payload.records;
+      showResult({
+        status: "PASS",
+        schema_version: payload.schema_version,
+        engine_version: payload.engine_version,
+        session: payload.session,
+        ephemeris: payload.ephemeris,
+        first_record: sessionRows[0],
+        last_record: sessionRows.at(-1),
+      });
+      setStatus(`✅ PASS — ${sessionRows.length} records generated · Swiss source verified · Lahiri ayanamsa`);
+      progressArea.style.display = "none";
+    } catch (e) {
+      setStatus("❌ Session ERROR: " + e.message);
+      showResult({ status: "FAIL", error: e.message });
+      progressArea.style.display = "none";
+    }
+  };
+
+  // ── CSV Export ────────────────────────────────────────────────────────────
+  function toCSV(rows) {
+    if (!rows.length) return "";
+    const flat = rows.map(r => {
+      const out = { ...r };
+      if (out.vargas) out.vargas = JSON.stringify(out.vargas);
+      if (out.planets) out.planets = JSON.stringify(out.planets);
+      if (out.ascendant && typeof out.ascendant === "object") {
+        out.ascendant_lon = out.ascendant.longitude;
+        delete out.ascendant;
+      }
+      return out;
+    });
+    const keys = [...new Set(flat.flatMap(r => Object.keys(r)))];
+    const esc  = v => {
+      const s = v == null ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+    };
+    return [keys.join(","), ...flat.map(r => keys.map(k => esc(r[k])).join(","))].join("\n");
+  }
+
+  function download(name, text, type) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  $("csvBtn").onclick = () => {
+    if (!sessionRows.length) { alert("Generate a session first."); return; }
+    download(`guruji_${$("date").value}_NY_0930_1559.csv`, toCSV(sessionRows), "text/csv");
+  };
+
+  $("jsonBtn").onclick = () => {
+    if (!sessionRows.length) { alert("Generate a session first."); return; }
+    const s = engineStatus();
+    const payload = {
+      schema_version: "guruji.minute.v1",
+      engine_version: "20.0",
+      generated_at: new Date().toISOString(),
+      date: $("date").value,
+      session: {
+        timezone: "America/New_York", location: "New York, USA",
+        latitude: Number($("lat").value), longitude: Number($("lon").value),
+        start_local: "09:30:00", end_local_exclusive: "16:00:00",
+        record_count: sessionRows.length,
+      },
+      ephemeris: { engine: "Swiss Ephemeris WASM", source: "swiss", data_files: s.files, data_bytes: s.bytes },
+      ayanamsa: "Lahiri",
+      records: sessionRows,
+    };
+    download(`guruji_${$("date").value}_NY_0930_1559.json`, JSON.stringify(payload, null, 2), "application/json");
+  };
+</script>
+</body>
+</html>

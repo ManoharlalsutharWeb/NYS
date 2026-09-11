@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GURUJI — Validation</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+<script>
+  (async () => { try { const r = await fetch("/api/session"); if (!r.ok) location.href = "/login.html"; const d = await r.json(); if (!d.ok) location.href = "/login.html"; } catch { location.href = "/login.html"; } })();
+</script>
+
+<header class="topbar">
+  <strong>🔮 GURUJI — Session Validation</strong>
+  <nav class="topbar-nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="ephemeris-status.html">Ephemeris Status</a>
+    <a href="minute-explorer.html">Minute Explorer</a>
+    <a href="varga-matrix.html">Varga Matrix</a>
+    <a href="validation.html" class="active">Validation</a>
+    <button id="logoutBtn" class="secondary" style="margin:0">Logout</button>
+  </nav>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h1>Session JSON Validator</h1>
+    <p class="muted" style="margin-bottom:14px">
+      Validates a GURUJI session JSON file against all production quality checks.
+    </p>
+    <label>Load Session JSON
+      <input type="file" id="fileInput" accept=".json">
+    </label>
+    <div class="row" style="margin-top:14px">
+      <button id="validateBtn">VALIDATE</button>
+    </div>
+  </div>
+
+  <div id="checkResults"></div>
+  <pre id="result" class="result-pane" style="margin-top:0">Load a session JSON file to validate.</pre>
+</main>
+
+<script>
+  document.getElementById("logoutBtn").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login.html"; };
+
+  document.getElementById("validateBtn").onclick = async () => {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) { alert("Select a JSON file first."); return; }
+
+    let data;
+    try {
+      const text = await file.text();
+      data = JSON.parse(text);
+    } catch (e) {
+      document.getElementById("result").textContent = "Invalid JSON: " + e.message;
+      return;
+    }
+
+    const checks = {};
+    const records = data.records || [];
+
+    checks.record_count     = { pass: records.length === 390, value: records.length, expected: 390 };
+    checks.first_minute     = { pass: records[0]?.local_time === "09:30:00", value: records[0]?.local_time, expected: "09:30:00" };
+    checks.last_minute      = { pass: records.at(-1)?.local_time === "15:59:00", value: records.at(-1)?.local_time, expected: "15:59:00" };
+    checks.timezone         = { pass: records.every(r => r.timezone === "America/New_York"), value: "checked", expected: "America/New_York for all" };
+    checks.swiss_source     = { pass: records.every(r => String(r.source || r.ephemeris_used || "").includes("swiss")), value: "checked", expected: "swiss for all" };
+    checks.ayanamsa_lahiri  = { pass: records.every(r => r.ayanamsa === "Lahiri" || data.ayanamsa === "Lahiri"), value: data.ayanamsa || records[0]?.ayanamsa, expected: "Lahiri" };
+
+    // 9 bodies check
+    checks.nine_bodies = (() => {
+      const first = records[0];
+      if (!first) return { pass: false, value: 0, expected: 9 };
+      const bodies = ["sun","moon","mars","mercury","jupiter","venus","saturn","rahu","ketu"];
+      const count  = bodies.filter(b => first[`${b}_longitude`] != null || (first.planets && first.planets[b] != null)).length;
+      return { pass: count === 9, value: count, expected: 9 };
+    })();
+
+    // Continuity check (no duplicate timestamps)
+    const times = records.map(r => r.utc_time);
+    checks.no_duplicates = { pass: new Set(times).size === times.length, value: `${new Set(times).size} unique`, expected: "390 unique" };
+
+    // Minute-by-minute continuity
+    let contiguous = true;
+    for (let i = 1; i < records.length; i++) {
+      const prev = new Date(records[i-1].utc_time);
+      const curr = new Date(records[i].utc_time);
+      if (isNaN(prev) || isNaN(curr) || curr - prev !== 60000) { contiguous = false; break; }
+    }
+    checks.contiguous_minutes = { pass: contiguous, value: contiguous ? "OK" : "Gap found", expected: "1-minute intervals" };
+
+    const allPass = Object.values(checks).every(c => c.pass);
+
+    let html = `<div class="card">
+      <h2>Validation Result: <span class="${allPass ? "badge badge-ok" : "badge badge-err"}">${allPass ? "✅ PASS" : "❌ FAIL"}</span></h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:12px">
+      <thead><tr style="border-bottom:1px solid #30363d">
+        <th style="text-align:left;padding:8px">Check</th>
+        <th style="text-align:center;padding:8px">Result</th>
+        <th style="text-align:left;padding:8px">Value</th>
+        <th style="text-align:left;padding:8px">Expected</th>
+      </tr></thead><tbody>`;
+
+    for (const [name, c] of Object.entries(checks)) {
+      html += `<tr style="border-bottom:1px solid #21262d">
+        <td style="padding:8px">${name.replace(/_/g, " ")}</td>
+        <td style="padding:8px;text-align:center"><span class="badge ${c.pass ? "badge-ok" : "badge-err"}">${c.pass ? "PASS" : "FAIL"}</span></td>
+        <td style="padding:8px;font-family:monospace;font-size:12px">${c.value}</td>
+        <td style="padding:8px;font-family:monospace;font-size:12px;color:#8b949e">${c.expected}</td>
+      </tr>`;
+    }
+    html += "</tbody></table></div>";
+
+    document.getElementById("checkResults").innerHTML = html;
+    document.getElementById("result").textContent = JSON.stringify({ validation: allPass ? "PASS" : "FAIL", file: file.name, checks, summary: data.session }, null, 2);
+  };
+</script>
+</body>
+</html>

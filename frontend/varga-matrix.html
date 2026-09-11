@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GURUJI — Varga Matrix D1–D60</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+<script>
+  (async () => { try { const r = await fetch("/api/session"); if (!r.ok) location.href = "/login.html"; const d = await r.json(); if (!d.ok) location.href = "/login.html"; } catch { location.href = "/login.html"; } })();
+</script>
+
+<header class="topbar">
+  <strong>🔮 GURUJI — Varga Matrix D1–D60</strong>
+  <nav class="topbar-nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="ephemeris-status.html">Ephemeris Status</a>
+    <a href="minute-explorer.html">Minute Explorer</a>
+    <a href="varga-matrix.html" class="active">Varga Matrix</a>
+    <a href="validation.html">Validation</a>
+    <button id="logoutBtn" class="secondary" style="margin:0">Logout</button>
+  </nav>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h1>Varga Matrix — D1 through D60</h1>
+    <p class="muted" style="margin-bottom:14px">All Parashari divisional charts. Lahiri ayanamsa · Drik Panchang compatible.</p>
+    <div class="two">
+      <div>
+        <label>Date <input type="date" id="date" value="2026-09-11"></label>
+        <label>Time (New York) <input type="time" id="time" value="09:30:00" step="1"></label>
+      </div>
+      <div>
+        <label>Latitude <input id="lat" type="number" step="0.000001" value="40.7128"></label>
+        <label>Longitude <input id="lon" type="number" step="0.000001" value="-74.0060"></label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button id="calcBtn">CALCULATE ALL VARGAS</button>
+    </div>
+    <div id="statusBar" class="status-bar" style="margin-top:12px">Ready.</div>
+  </div>
+
+  <div id="matrixArea"></div>
+</main>
+
+<script type="module">
+  import { initEngine, calculate } from "./js/engine.js";
+  import { VARGAS, RASHIS, VALIDATION_STATUS } from "./js/vedic-rules.js";
+
+  const $ = id => document.getElementById(id);
+
+  $("logoutBtn").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login.html"; };
+
+  $("calcBtn").onclick = async () => {
+    $("statusBar").textContent = "Calculating all vargas…";
+    $("matrixArea").innerHTML = "";
+    try {
+      await initEngine();
+      const r = await calculate({
+        date: $("date").value, time: $("time").value,
+        lat: $("lat").value, lon: $("lon").value,
+        enabledVargas: VARGAS,
+      });
+      $("statusBar").textContent = `✅ Done — ${r.utc_time} · Lahiri · Swiss Ephemeris`;
+
+      const planets = ["sun","moon","mars","mercury","jupiter","venus","saturn","rahu","ketu"];
+
+      let html = `<div class="card"><h2>Varga Sign Positions</h2>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:900px">
+        <thead><tr style="border-bottom:2px solid #30363d">
+          <th style="text-align:left;padding:8px">Planet</th>
+          <th style="text-align:right;padding:8px">D1 Lon</th>`;
+
+      for (const v of VARGAS) {
+        const status = VALIDATION_STATUS[`D${v}`];
+        const color  = status === "core" ? "#3fb950" : "#8b949e";
+        html += `<th style="text-align:center;padding:8px;color:${color}">D${v}</th>`;
+      }
+      html += "</tr></thead><tbody>";
+
+      for (const p of planets) {
+        const lon = r[`${p}_longitude`];
+        if (lon == null) continue;
+        html += `<tr style="border-bottom:1px solid #21262d">
+          <td style="padding:7px;font-weight:600;text-transform:capitalize">${p}</td>
+          <td style="padding:7px;text-align:right;font-family:monospace">${lon.toFixed(3)}°</td>`;
+        const vargas = r.vargas?.[`${p}_longitude`] || {};
+        for (const v of VARGAS) {
+          const vd = vargas[`D${v}`];
+          html += `<td style="padding:7px;text-align:center">${vd ? `<span title="${vd.name}" style="font-size:11px">${vd.sign}<br><span style="color:#8b949e">${vd.name.slice(0,3)}</span></span>` : "—"}</td>`;
+        }
+        html += "</tr>";
+      }
+
+      // Ascendant
+      if (r.ascendant_longitude != null) {
+        html += `<tr style="border-top:2px solid #30363d">
+          <td style="padding:7px;font-weight:700">Ascendant</td>
+          <td style="padding:7px;text-align:right;font-family:monospace">${r.ascendant_longitude.toFixed(3)}°</td>`;
+        const vargas = r.vargas?.ascendant_longitude || {};
+        for (const v of VARGAS) {
+          const vd = vargas[`D${v}`];
+          html += `<td style="padding:7px;text-align:center">${vd ? `<span title="${vd.name}" style="font-size:11px">${vd.sign}<br><span style="color:#8b949e">${vd.name.slice(0,3)}</span></span>` : "—"}</td>`;
+        }
+        html += "</tr>";
+      }
+
+      html += `</tbody></table></div>
+        <p class="muted small" style="margin-top:10px">
+          <span style="color:#3fb950">Green headers</span> = core (widely validated).
+          Grey = needs Drik Panchang reference comparison before production use.
+        </p>
+      </div>`;
+
+      $("matrixArea").innerHTML = html;
+    } catch (e) {
+      $("statusBar").textContent = "❌ ERROR: " + e.message;
+    }
+  };
+</script>
+</body>
+</html>
