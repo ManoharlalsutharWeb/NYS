@@ -1,0 +1,25 @@
+{
+  "name": "guruji-astro-data-engine",
+  "version": "20.0.0",
+  "description": "Vedic Astro Data Engine — Single-admin, Swiss Ephemeris, Lahiri (Drik Panchang), New York session generator",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start":             "node server/server.mjs",
+    "server":            "node server/server.mjs",
+    "prepare:ephemeris": "node scripts/copy-ephemeris.mjs",
+    "preflight":         "node scripts/preflight.mjs",
+    "swiss:selftest":    "node scripts/swiss-selftest.mjs",
+    "test:session":      "node scripts/test-session.mjs",
+    "test:all":          "node scripts/preflight.mjs && node scripts/swiss-selftest.mjs && node scripts/test-session.mjs",
+    "generate:session":  "node scripts/generate-session.mjs"
+  },
+  "dependencies": {
+    "@kuntay/swisseph":      "0.2.2",
+    "@kuntay/swisseph-data": "0.2.2",
+    "@swisseph/node":        "^1.3.1"
+  }
+}
